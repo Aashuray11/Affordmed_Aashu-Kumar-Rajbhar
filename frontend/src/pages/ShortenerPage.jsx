@@ -21,15 +21,22 @@ export default function ShortenerPage(){
     }
     setLoading(true)
     try{
-      const created=[]
-      for(const p of payload){
-        const res= await fetch(import.meta.env.VITE_API_BASE+'/shorturls',{ method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(p) })
+      let created
+      if(payload.length===1){
+        const res= await fetch(import.meta.env.VITE_API_BASE+'/shorturls',{ method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload[0]) })
         if(!res.ok){ const err= await res.json().catch(()=>({ error:'Error'})); throw new Error(err.error||'Error') }
-        const data= await res.json()
-        created.push(data)
+        created=[ await res.json() ]
+      } else {
+        const res= await fetch(import.meta.env.VITE_API_BASE+'/shorturls/batch',{ method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
+        if(!res.ok){ const err= await res.json().catch(()=>({ error:'Error'})); throw new Error(err.error||'Error') }
+        created= await res.json()
       }
-      setResults(created.concat(results))
-      setSnack({ open:true, severity:'success', msg:'Created' })
+      const filtered = created.filter(x=>!x.error)
+      const failures = created.filter(x=>x.error)
+      if(filtered.length) setResults(filtered.concat(results))
+      if(failures.length && !filtered.length) setSnack({ open:true, severity:'error', msg: failures[0].error })
+      else if(failures.length) setSnack({ open:true, severity:'warning', msg: `Partial: ${failures.length} failed` })
+      else setSnack({ open:true, severity:'success', msg:'Created' })
     }catch(e){ setSnack({ open:true, severity:'error', msg:e.message }) }
     finally{ setLoading(false) }
   }

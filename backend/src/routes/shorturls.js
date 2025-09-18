@@ -20,7 +20,33 @@ router.post('/', async (req,res,next)=>{
     const expiry = new Date(now.getTime() + validityMinutes*60000)
     const doc = await ShortUrl.create({ url, shortcode: code, validityMinutes, createdAt: now, expiry })
     const host = process.env.HOSTNAME || `http://localhost:${process.env.PORT||4000}`
-    res.status(201).json({ shortLink: host + '/' + doc.shortcode, expiry: doc.expiry })
+    res.status(201).json({ shortLink: host + '/' + doc.shortcode, expiry: doc.expiry, url: doc.url })
+  } catch(e){ next(e) }
+})
+
+router.post('/batch', async (req,res,next)=>{
+  try {
+    const items = Array.isArray(req.body) ? req.body : req.body.items
+    if(!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'array required' })
+    const host = process.env.HOSTNAME || `http://localhost:${process.env.PORT||4000}`
+    const results = []
+    for(const raw of items){
+      const { url, validity, shortcode } = raw || {}
+      if(!url){ results.push({ error:'url required' }); continue }
+      let code = shortcode && shortcode.trim()
+      if(code){
+        const exists = await ShortUrl.findOne({ shortcode: code })
+        if(exists){ results.push({ error:'shortcode exists', shortcode: code }); continue }
+      } else {
+        do { code = generateShortcode() } while(await ShortUrl.findOne({ shortcode: code }))
+      }
+      const validityMinutes = Number.isInteger(validity) ? validity : 30
+      const now = new Date()
+      const expiry = new Date(now.getTime() + validityMinutes*60000)
+      const doc = await ShortUrl.create({ url, shortcode: code, validityMinutes, createdAt: now, expiry })
+      results.push({ shortLink: host + '/' + doc.shortcode, expiry: doc.expiry, url: doc.url })
+    }
+    res.status(201).json(results)
   } catch(e){ next(e) }
 })
 

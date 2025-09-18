@@ -37,6 +37,17 @@ Stats for a shortcode including click logs.
 GET /:shortcode  
 Redirect if valid else error JSON.
 
+POST /shorturls/batch  
+Send an array of objects. Each object: { url, validity (minutes, optional), shortcode (optional) }.  
+Request JSON example:
+```
+[
+	{ "url": "https://example.com", "validity": 45 },
+	{ "url": "https://github.com", "shortcode": "gh" }
+]
+```
+Response: Array of result objects: { shortLink, expiry, url } or { error, shortcode? }
+
 Click tracking stores timestamp, referrer, user-agent, accept-language.
 
 ### Frontend
